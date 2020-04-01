@@ -1,0 +1,41 @@
+name: paintera_env_new
+channels:
+  - conda-forge
+  - defaults
+dependencies:
+  - _libgcc_mutex=0.1=main
+  - blas=1.0=mkl
+  - ca-certificates=2019.11.27=0
+  - certifi=2019.11.28=py38_0
+  - h5py=2.9.0=py38h7918eee_0
+  - hdf5=1.10.4=hb1b8bf9_0
+  - intel-openmp=2019.4=243
+  - jgo=0.5.0=py38_0
+  - libffi=3.2.1=he1b5a44_1006
+  - libgcc-ng=9.1.0=hdf63c60_0
+  - libgfortran-ng=7.3.0=hdf63c60_0
+  - libstdcxx-ng=9.1.0=hdf63c60_0
+  - maven=3.6.0=0
+  - mkl=2019.4=243
+  - mkl-service=2.3.0=py38he904b0f_0
+  - mkl_fft=1.0.15=py38ha843d7b_0
+  - mkl_random=1.1.0=py38h962f231_0
+  - ncurses=6.1=hf484d3e_1002
+  - numpy=1.17.4=py38hc1035e2_0
+  - numpy-base=1.17.4=py38hde5b4d6_0
+  - openjdk=8.0.152=h46b5887_1
+  - openssl=1.1.1d=h7b6447c_3
+  - paintera=0.21.0=py_0
+  - paintera-conversion-helper=0.9.3=py_0
+  - pip=19.3.1=py38_0
+  - psutil=5.6.5=py38h516909a_0
+  - python=3.8.0=h357f687_3
+  - readline=8.0=hf8c457e_0
+  - setuptools=41.6.0=py38_1
+  - six=1.13.0=py38_0
+  - sqlite=3.30.1=hcee41ef_0
+  - tk=8.6.9=hed695b0_1003
+  - wheel=0.33.6=py38_0
+  - xz=5.2.4=h14c3975_1001
+  - zlib=1.2.11=h516909a_1006
+
