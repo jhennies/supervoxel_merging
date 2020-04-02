@@ -350,7 +350,7 @@ def paintera_merging_module(
     if not os.path.exists(os.path.join(results_folder, 'raw.n5')):
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(results_folder, 'raw.n5'),
-                              activation_command, shell)
+                              activation_command, shell, verbose=verbose)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     if mem_pred_filepath is not None:
         if verbose:
@@ -358,14 +358,14 @@ def paintera_merging_module(
         if not os.path.exists(os.path.join(results_folder, 'mem.n5')):
             print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
             prepare_for_paintera(paintera_env_name, mem_pred_filepath, os.path.join(results_folder, 'mem.n5'),
-                                  activation_command, shell)
+                                  activation_command, shell, verbose=verbose)
             print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     if verbose:
         print('Preparing supervoxels ...')
     if not os.path.exists(os.path.join(results_folder, 'sv.n5')):
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
-                              activation_command, shell)
+                              activation_command, shell, verbose=verbose)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     if not os.path.exists(os.path.join(paintera_proj_path, 'attributes.json')):
@@ -387,7 +387,7 @@ def paintera_merging_module(
         print('\nSave and close Paintera when done.')
 
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-        open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell)
+        open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     else:
         print('\nPaintera project exists ...')
@@ -407,7 +407,7 @@ def paintera_merging_module(
     print('Perform the necessary corrections, then save and close Paintera.')
     print('Consider committing to backend (CTRL + C) before starting to annotate to make Paintera run more fluently.')
     print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-    open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell)
+    open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose)
     print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     # 8. Convert results to h5 and do the assignments
