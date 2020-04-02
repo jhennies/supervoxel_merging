@@ -11,7 +11,7 @@ if __name__ == '__main__':
     if not os.path.exists(results_folder):
         os.mkdir(results_folder)
 
-    inputs_folder = '/g/schwab/hennies/FOR_CONSTANTIN'
+    inputs_folder = '/g/schwab/hennies/FOR_CONSTANTIN/paintera_mc_wf_example_package'
 
     raw_filepath = os.path.join(
         inputs_folder,
