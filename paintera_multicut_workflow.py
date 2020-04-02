@@ -195,6 +195,7 @@ def prepare_for_paintera(paintera_env_name, filepath, target_filepath,
         console_output = None
     else:
         console_output = DEVNULL
+    # FIXME use run: gibt return value
     call([
         '{act} {env}\n'
         'paintera-convert to-paintera '
