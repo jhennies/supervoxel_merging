@@ -1,3 +1,4 @@
+import argparse
 
 import os
 from paintera_multicut_workflow import pm_workflow
@@ -5,8 +6,16 @@ from paintera_multicut_workflow import pm_workflow
 
 if __name__ == '__main__':
 
-    # TODO: Set this!
-    results_folder = '/path/to/results/'
+    command = 'source /g/kreshuk/pape/Work/software/conda/miniconda3/bin/activate'
+
+    parser = argparse.ArgumentParser()
+    parser.add_argument('result_folder', type=str)
+    parser.add_argument('--paintera_env_name', type=str, default='paintera')
+    parser.add_argument('--activation_command', type=str, default=command)
+    args = parser.parse_args()
+    results_folder = args.result_folder
+    paintera_env_name = args.paintera_env_name
+    activation_command = args.activation_command
 
     if not os.path.exists(results_folder):
         os.mkdir(results_folder)
@@ -34,8 +43,8 @@ if __name__ == '__main__':
         mem_pred_channel=2,
         auto_crop_center=True,
         annotation_shape=(256, 256, 256),
-        paintera_env_name='paintera_env_new',
-        activation_command='source /home/hennies/miniconda3/bin/activate',
+        paintera_env_name=paintera_env_name,
+        activation_command=activation_command,
         export_binary=True,
         conncomp_on_paintera_export=True,
         verbose=True
