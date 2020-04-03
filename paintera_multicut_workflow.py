@@ -19,7 +19,7 @@ try:
 except:
     print('Warning: Napari not imported.')
 
-from svm_tools.paintera_merge import convert_pre_merged_labels_to_paintera
+from svm_tools.paintera_merge import convert_pre_merged_labels_to_assignments
 from svm_tools.label_operations import relabel_consecutive
 from svm_tools.volume_operations import crop_center
 
@@ -209,7 +209,7 @@ def prepare_for_paintera(paintera_env_name, filepath, target_filepath,
 
 
 def export_from_paintera(paintera_env_name, filepath, target_filepath,
-                        activation_command='source activate', shell='/bin/bash', verbose=False):
+                         activation_command='source activate', shell='/bin/bash', verbose=False):
     if verbose:
         console_output = None
     else:
@@ -351,7 +351,7 @@ def paintera_merging_module(
     if not os.path.exists(os.path.join(results_folder, 'raw.n5')):
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(results_folder, 'raw.n5'),
-                              activation_command, shell, verbose=verbose)
+                             activation_command, shell, verbose=verbose)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     if mem_pred_filepath is not None:
         if verbose:
@@ -359,14 +359,14 @@ def paintera_merging_module(
         if not os.path.exists(os.path.join(results_folder, 'mem.n5')):
             print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
             prepare_for_paintera(paintera_env_name, mem_pred_filepath, os.path.join(results_folder, 'mem.n5'),
-                                  activation_command, shell, verbose=verbose)
+                                 activation_command, shell, verbose=verbose)
             print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     if verbose:
         print('Preparing supervoxels ...')
     if not os.path.exists(os.path.join(results_folder, 'sv.n5')):
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
-                              activation_command, shell, verbose=verbose)
+                             activation_command, shell, verbose=verbose)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     if not os.path.exists(os.path.join(paintera_proj_path, 'attributes.json')):
@@ -396,7 +396,7 @@ def paintera_merging_module(
     if not os.path.exists(paintera_lock_file):
         print('\nIntegrating pre-merged segmentation into Paintera project ...')
         # 6. Integrate Multicut result to the paintera project
-        convert_pre_merged_labels_to_paintera(
+        convert_pre_merged_labels_to_assignments(
             supervoxel_filepath, seg_filepath, paintera_proj_path
         )
         open(paintera_lock_file, 'a').close()
@@ -417,7 +417,7 @@ def paintera_merging_module(
     #    > paintera-convert to-scalar --consider-fragment-segment-assignment ...
     print('Exporting from paintera ...')
     export_from_paintera(paintera_env_name, supervoxel_proj_path, os.path.join(results_folder, 'exported_seg.h5'),
-                          activation_command, shell)
+                         activation_command, shell)
 
 
 def paintera_merging_module2(
@@ -453,7 +453,7 @@ def paintera_merging_module2(
     if True:
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(tmp_dir, 'raw.n5'),
-                              activation_command, shell)
+                             activation_command, shell)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     # if mem_pred_filepath is not None:
     #     if verbose:
@@ -476,7 +476,7 @@ def paintera_merging_module2(
     if True:
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
-                              activation_command, shell)
+                             activation_command, shell)
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     if not os.path.exists(os.path.join(paintera_proj_path, 'attributes.json')):
@@ -503,11 +503,12 @@ def paintera_merging_module2(
     else:
         print('\nPaintera project exists ...')
 
+    # TODO why is there an if True here?
     # if not os.path.exists(paintera_lock_file):
     if True:
         print('\nIntegrating pre-merged segmentation into Paintera project ...')
         # 6. Integrate Multicut result to the paintera project
-        convert_pre_merged_labels_to_paintera(
+        convert_pre_merged_labels_to_assignments(
             supervoxel_filepath, seg_filepath, paintera_proj_path
         )
         open(paintera_lock_file, 'a').close()
@@ -530,7 +531,7 @@ def paintera_merging_module2(
     if export_filepath is None:
         export_filepath = os.path.join(results_folder, '{}.h5'.format(export_name))
     export_from_paintera(paintera_env_name, supervoxel_proj_path, export_filepath,
-                          activation_command, shell)
+                         activation_command, shell)
 
     if conncomp_on_paintera_export or result_dtype is not None:
         with open_file(export_filepath, mode='r') as f:
