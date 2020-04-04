@@ -252,6 +252,25 @@ def open_napari(data):
             elif item['type'] == 'raw':
                 viewer.add_image(item['data'], name=item['name'], visible=item['visible'])
 
+        @viewer.bind_key('q')
+        def quit(viewer):
+            pass
+
+        @viewer.bind_key('h')
+        def help(viewer):
+            # TODO refactor this into a function, so it can be called from elsewhere
+            print('            exit / q      -> finish assignments and export')
+            print('            update / u    -> updates Napari display')
+            print('            editor / e    -> re-opens editor')
+
+        @viewer.bind_key('u')
+        def update(viewer):
+            pass
+
+        @viewer.bind_key('e')
+        def editor(viewer):
+            pass
+
     return None
 
 
