@@ -14,9 +14,11 @@ import elf.segmentation.features as feats
 from subprocess import call, DEVNULL
 import multiprocessing as mp
 
+# FIXME I don't think this makes sense, the workflow will not execute properly without
+# napari, so it should be a hard requirement
 try:
     import napari
-except:
+except ImportError:
     print('Warning: Napari not imported.')
 
 from svm_tools.paintera_merge import convert_pre_merged_labels_to_assignments
@@ -251,25 +253,6 @@ def open_napari(data):
                 viewer.add_labels(item['data'], name=item['name'], visible=item['visible'])
             elif item['type'] == 'raw':
                 viewer.add_image(item['data'], name=item['name'], visible=item['visible'])
-
-        @viewer.bind_key('q')
-        def quit(viewer):
-            pass
-
-        @viewer.bind_key('h')
-        def help(viewer):
-            # TODO refactor this into a function, so it can be called from elsewhere
-            print('            exit / q      -> finish assignments and export')
-            print('            update / u    -> updates Napari display')
-            print('            editor / e    -> re-opens editor')
-
-        @viewer.bind_key('u')
-        def update(viewer):
-            pass
-
-        @viewer.bind_key('e')
-        def editor(viewer):
-            pass
 
     return None
 
@@ -593,82 +576,101 @@ def organelle_assignment_module(
         with open(organelle_assignments_filepath, mode='w') as f:
             json.dump(dict(CYTO=dict(labels=[0], type='single')), f)
 
-    with open(organelle_assignments_filepath, mode='r') as f:
-        assignments = json.load(f)
+    all_ids = list(np.unique(exp_seg))
 
-    def _generate_organelle_maps(assignments, seg):
+    def _generate_organelle_maps():
+
+        # TODO this should be wrapped in a try/except in case of invalid json syntax
+        # and then be caught to tell user to correct it
+        # get the current organelle assignments from the text file
+        with open(organelle_assignments_filepath, mode='r') as f:
+            assignments = json.load(f)
+
         maps = {}
-        all_ids = list(np.unique(seg))
+        assigned = []
         for organelle, assignment in assignments.items():
-            maps[organelle] = np.zeros(seg.shape, dtype=seg.dtype)
+            maps[organelle] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
             val = 1
             for idx in assignment['labels']:
-                all_ids.remove(idx)
-                maps[organelle][seg == idx] = val
+                maps[organelle][exp_seg == idx] = val
                 if assignment['type'] == 'multi':
                     val += 1
+                assigned.append(idx)
 
-        maps['MISC'] = np.zeros(seg.shape, dtype=seg.dtype)
+        unassigned = np.setdiff1d(all_ids, assigned)
+        maps['MISC'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
         val = 1
-        for idx in all_ids:
-            maps['MISC'][seg == idx] = val
+        for idx in unassigned:
+            maps['MISC'][exp_seg == idx] = val
             val += 1
 
         map_names = sorted(maps.keys())
-        maps['SEMANTICS'] = np.zeros(seg.shape, dtype=seg.dtype)
+        maps['SEMANTICS'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
         for map_idx, map_name in enumerate(map_names):
             maps['SEMANTICS'][maps[map_name] > 0] = map_idx
 
         return maps
 
-    def _update_napari():
-        args = [dict(type='raw', name='raw', data=raw, visible=True)]
-        if mem_pred_filepath is not None:
-            args.append(dict(type='raw', name='mem', data=mem, visible=False))
-        args.append(dict(type='label', name='from Paintera', data=exp_seg, visible=False))
-        args += [
-            dict(type='label', name=name, data=data, visible=False)
-            if name != 'MISC'
-            else dict(type='label', name=name, data=data, visible=True)
-            for name, data in organelle_maps.items()
-        ]
+    def _print_help():
+        # I don't think we need explicit quit command any more
+        # print('            exit / q      -> finish assignments and export')
+        print('            update / u    -> updates Napari display')
+        print('            editor / e    -> re-opens editor')
 
-        napari_p = mp.Process(target=open_napari, args=(args,))
-        return napari_p
-
-    organelle_maps = _generate_organelle_maps(assignments, exp_seg)
-
-    napari_p = _update_napari()
-
+    # start the editor in a sub-process
     editor_p = mp.Process(target=_open_editor, args=(organelle_assignments_filepath,))
-    napari_p.start()
     editor_p.start()
 
-    user_happy = False
-    while not user_happy:
+    with napari.gui_qt():
+        viewer = napari.Viewer()
+        # add the initiail (static) layers
+        viewer.add_image(raw, name='raw')
+        if mem_pred_filepath is not None:
+            viewer.add_image(mem, name='mem', visible=False)
+        viewer.add_labels(exp_seg, name='from Paintera', visible=False)
 
-        command = _query_commands()
+        # add the initial organelle maps
+        organelle_maps = _generate_organelle_maps()
+        for name, data in organelle_maps.items():
+            is_visible = name == 'MISC'
+            viewer.add_labels(data, name=name, visible=is_visible)
 
-        if command == 'exit':
-            user_happy = True
-        elif command == 'update':
-            napari_p.terminate()
-            napari_p.join()
-            with open(organelle_assignments_filepath, mode='r') as f:
-                assignments = json.load(f)
-            organelle_maps = _generate_organelle_maps(assignments, exp_seg)
-            napari_p = _update_napari()
-            napari_p.start()
-        elif command == 'editor':
+        _print_help()
+
+        # I don't think this is necessary any more
+        # @viewer.bind_key('q')
+        # def quit(viewer):
+        #     pass
+
+        @viewer.bind_key('h')
+        def help(viewer):
+            _print_help()
+
+        @viewer.bind_key('u')
+        def update(viewer):
+            print("Updating napari layers from organelle assignments ...")
+            new_organelle_maps = _generate_organelle_maps()
+
+            # iterate over the organelle maps, if we have it in the layers already, update the layer,
+            # otherwise add a new layer
+            # TODO this does not catch the case where a category is removed yet (the layer will persist)
+            # this should also be caught and the layer be removed
+            layers = viewer.layers
+            for name, data in new_organelle_maps.items():
+                is_visible = name == 'MISC'
+                if name in layers:
+                    layers[name].data = data
+                else:
+                    viewer.add_labels(data, name=name, visible=is_visible)
+            print("... done")
+
+        @viewer.bind_key('e')
+        def editor(viewer):
+            nonlocal editor_p
             editor_p.terminate()
             editor_p.join()
             editor_p = mp.Process(target=_open_editor, args=(organelle_assignments_filepath,))
             editor_p.start()
-        else:
-            raise ValueError
-
-    napari_p.join()
-    editor_p.join()
 
     # 10. Export organelle maps
     print('Exporting organelle maps ...')
