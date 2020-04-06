@@ -34,15 +34,19 @@ def write_assignments_to_paintera_format(assignments, data_path, paintera_prefix
 # in the top-dir of paintera_project_path.
 # I would recommend to restructure this and have everything in one 'data.n5' container.
 # And then pass this data-path and the paintera data prefix to this function
-def convert_pre_merged_labels_to_assignments(sv_filepath, merged_filepath, paintera_proj_path):
+def convert_pre_merged_labels_to_assignments(sv_filepath, merged_filepath, paintera_proj_path,
+                                             sv_name='sv', merged_name='data'):
     """ Accumulate node labels for superpixels and write out paintera fragment-segment-assignment format
     """
     with h5py.File(merged_filepath, mode='r') as f:
-        merged_sv = f['data'][:]
+        merged_sv = f[merged_name][:]
 
+    # with h5py.File(sv_filepath, mode='r') as f:
+    #     sv = f[sv_name][:]
+    # FIXME use the n5 here!
     with h5py.File(sv_filepath, mode='r') as f:
-        sv = f['data'][:]
+        sv = f[sv_name][:]
 
     assignments = get_assignments_from_labels(sv, merged_sv)
-    data_path = os.path.join(os.path.split(paintera_proj_path)[0], 'sv.n5')
-    write_assignments_to_paintera_format(assignments, data_path, 'data')
+    data_path = os.path.join(os.path.split(paintera_proj_path)[0], 'data.n5')
+    write_assignments_to_paintera_format(assignments, data_path, 'sv')

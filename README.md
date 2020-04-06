@@ -4,14 +4,28 @@ Semi-automatic segmentation workflow for Volume SEM datasets
 
 ## Installation 
 
+### From environment files
+
 Paintera:
 
     conda env create -f paintera-env.yml
     
-
 Main environment:
 
     conda env create -f paintera-mc-workflow-env.yml
+    
+### Manually
+
+Paintera
+
+    TODO
+    
+Main environment:
+
+    conda create -n paintera-mc-workflow-env -c cpape -c conda-forge elf python=3.7
+    conda activate paintera-mc-workflow-env
+    conda install -c conda-forge napari
+    conda install -c cpape z5py
 
 ## Usage
 

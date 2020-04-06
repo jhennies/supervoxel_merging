@@ -14,12 +14,7 @@ import elf.segmentation.features as feats
 from subprocess import call, DEVNULL
 import multiprocessing as mp
 
-# FIXME I don't think this makes sense, the workflow will not execute properly without
-# napari, so it should be a hard requirement
-try:
-    import napari
-except ImportError:
-    print('Warning: Napari not imported.')
+import napari
 
 from svm_tools.paintera_merge import convert_pre_merged_labels_to_assignments
 from svm_tools.label_operations import relabel_consecutive
@@ -191,39 +186,42 @@ def _query_commands():
 
 
 def prepare_for_paintera(paintera_env_name, filepath, target_filepath,
-                         activation_command='source activate', shell='/bin/bash', verbose=False):
+                         activation_command='source activate', shell='/bin/bash',
+                         src_name='data', tgt_name='data', verbose=False):
 
     if verbose:
         console_output = None
     else:
         console_output = DEVNULL
-    # FIXME use run: gibt return value
-    call([
+    return call([
         '{act} {env}\n'
         'paintera-convert to-paintera '
         '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}'.format(
             act=activation_command,
             env=paintera_env_name,
-            src=filepath, src_name='data',
-            tgt=target_filepath, tgt_name='data'
+            src=filepath, src_name=src_name,
+            tgt=target_filepath, tgt_name=tgt_name
         )
     ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def export_from_paintera(paintera_env_name, filepath, target_filepath,
-                         activation_command='source activate', shell='/bin/bash', verbose=False):
+                         activation_command='source activate', shell='/bin/bash',
+                         src_name='data', tgt_name='data', verbose=False):
     if verbose:
         console_output = None
     else:
         console_output = DEVNULL
-    call([
+    return call([
         '{act} {paintera_env}\n'
         'paintera-convert to-scalar '
-        '--consider-fragment-segment-assignment -i {fp} -I data -o {target_fp} -O data'.format(
+        '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}'.format(
             act=activation_command,
             paintera_env=paintera_env_name,
             fp=filepath,
-            target_fp=target_filepath
+            target_fp=target_filepath,
+            src_name=src_name,
+            tgt_name=tgt_name
         )
     ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
@@ -234,7 +232,7 @@ def open_paintera(paintera_env_name, project_folder,
         console_output = None
     else:
         console_output = DEVNULL
-    call([
+    return call([
         '{act} {paintera_env}\n'
         'paintera {folder}'.format(
             act=activation_command,
@@ -336,90 +334,88 @@ def multicut_module(
 
 def paintera_merging_module(
         results_folder,
-        paintera_lock_file,
         paintera_proj_path,
         activation_command,
         paintera_env_name,
         shell,
-        seg_filepath,
-        full_raw_filepath,
-        supervoxel_filepath,
-        supervoxel_proj_path,
-        mem_pred_filepath,
+        seg_filepath, seg_name,
+        full_raw_filepath, raw_name,
+        supervoxel_filepath, sv_name,
+        mem_pred_filepath, mem_name,
         verbose
 ):
-    if verbose:
-        print('Preparing raw ...')
-    if not os.path.exists(os.path.join(results_folder, 'raw.n5')):
-        print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-        prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(results_folder, 'raw.n5'),
-                             activation_command, shell, verbose=verbose)
-        print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
-    if mem_pred_filepath is not None:
+
+    supervoxel_proj_path = os.path.join(results_folder, 'data.n5')
+
+    if not os.path.exists(os.path.join(results_folder, 'data.n5')):
         if verbose:
-            print('Preparing membrane prediction ...')
-        if not os.path.exists(os.path.join(results_folder, 'mem.n5')):
-            print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-            prepare_for_paintera(paintera_env_name, mem_pred_filepath, os.path.join(results_folder, 'mem.n5'),
-                                 activation_command, shell, verbose=verbose)
-            print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
-    if verbose:
-        print('Preparing supervoxels ...')
-    if not os.path.exists(os.path.join(results_folder, 'sv.n5')):
+            print('Preparing raw ...')
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-        prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
-                             activation_command, shell, verbose=verbose)
+        if prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(results_folder, 'data.n5'),
+                                activation_command, shell, verbose=verbose, src_name=raw_name, tgt_name='raw'):
+            raise RuntimeError
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
+
+        if mem_pred_filepath is not None:
+            if verbose:
+                print('Preparing membrane prediction ...')
+            print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
+            if prepare_for_paintera(paintera_env_name, mem_pred_filepath, os.path.join(results_folder, 'data.n5'),
+                                    activation_command, shell, verbose=verbose, src_name=mem_name, tgt_name='mem'):
+                raise RuntimeError
+            print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
+
+        if verbose:
+            print('Preparing supervoxels ...')
+        print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
+        if prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
+                                activation_command, shell, verbose=verbose, src_name=sv_name, tgt_name='sv'):
+            raise RuntimeError
+        print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
+
+        if verbose:
+            print('Assigning pre-merged segmentation to supervoxels')
+        convert_pre_merged_labels_to_assignments(
+            supervoxel_filepath, seg_filepath, paintera_proj_path, sv_name='data', merged_name=seg_name
+        )
 
     if not os.path.exists(os.path.join(paintera_proj_path, 'attributes.json')):
         # 5. Ask user to create paintera project and close paintera again
         print('\n\nOpening paintera...\n')
-        print('Set up the Paintera project by loading the following files from')
-        print(results_folder)
-        print('1. Raw data (as type raw):                "raw.n5"')
+        print('Set up the Paintera project by loading the following data from')
+        print(os.path.join(results_folder, 'data.n5'))
+        print('Dataset names:')
+        print('1. Raw data (as type raw):                "raw"')
         if mem_pred_filepath is not None:
-            print('2. Membrane prediction (as type raw):     "mem.n5"')
-            print('3. Supervoxels (as type labels):          "sv.n5"')
+            print('2. Membrane prediction (as type raw):     "mem"')
+            print('3. Supervoxels (as type labels):          "sv"')
         else:
-            print('2. Supervoxels (as type labels):          "sv.n5"')
+            print('2. Supervoxels (as type labels):          "sv"')
 
-        print('\nIt is possible to change settings at this step, for example, '
-              'it is best to already switch off 3D rendering.')
-        print('\nNote: DO NOT YET PERFORM ANY MERGES!')
-
-        print('\nSave and close Paintera when done.')
+        print('\nProof-read the segmentation as desired; save, commit changes and close Paintera when done.')
+        print('\nNote: DO NOT FORGET TO COMMIT CHANGES BEFORE CLOSING!')
 
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-        open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose)
+        if open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose):
+            raise RuntimeError
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     else:
         print('\nPaintera project exists ...')
-
-    if not os.path.exists(paintera_lock_file):
-        print('\nIntegrating pre-merged segmentation into Paintera project ...')
-        # 6. Integrate Multicut result to the paintera project
-        convert_pre_merged_labels_to_assignments(
-            supervoxel_filepath, seg_filepath, paintera_proj_path
-        )
-        open(paintera_lock_file, 'a').close()
-    else:
-        print('\nPaintera project already locked ...')
-
-    # 7. Ask user to open paintera again, to do the necessary annotations and then close paintera
-    print('\n\nOpening paintera...\n')
-    print('Perform the necessary corrections, then save and close Paintera.')
-    print('Consider committing to backend (CTRL + C) before starting to annotate to make Paintera run more fluently.')
-    print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-    open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose)
-    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     # 8. Convert results to h5 and do the assignments
     #    Generate terminal commands:
     #    > conda activate paintera_env
     #    > paintera-convert to-scalar --consider-fragment-segment-assignment ...
     print('Exporting from paintera ...')
-    export_from_paintera(paintera_env_name, supervoxel_proj_path, os.path.join(results_folder, 'exported_seg.h5'),
-                         activation_command, shell)
+    if verbose:
+        print(supervoxel_proj_path)
+    print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
+    if export_from_paintera(paintera_env_name, supervoxel_proj_path, os.path.join(results_folder, 'exported_seg.h5'),
+                            activation_command, shell, src_name='sv', tgt_name='data',
+                            verbose=verbose):
+        raise RuntimeError
+    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
+    assert os.path.exists(os.path.join(results_folder, 'exported_seg.h5'))
 
 
 def paintera_merging_module2(
@@ -889,6 +885,9 @@ def pm_workflow(
         raw_filepath,
         mem_pred_filepath,
         supervoxel_filepath,
+        raw_name='data',
+        mem_name='data',
+        sv_name='data',
         mem_pred_channel=None,
         auto_crop_center=False,
         annotation_shape=None,
@@ -923,8 +922,6 @@ def pm_workflow(
     """
 
     paintera_proj_path = os.path.join(results_folder, 'paintera_proj')
-    paintera_lock_file = os.path.join(results_folder, '.paintera_lock')
-    supervoxel_proj_path = os.path.join(results_folder, 'sv.n5')
     organelle_assignments_filepath = os.path.join(results_folder, 'organelle_assignments.json')
 
     if not os.path.exists(results_folder):
@@ -985,16 +982,14 @@ def pm_workflow(
 
     paintera_merging_module(
         results_folder,
-        paintera_lock_file,
         paintera_proj_path,
         activation_command,
         paintera_env_name,
         shell,
-        seg_filepath,
-        full_raw_filepath,
-        supervoxel_filepath,
-        supervoxel_proj_path,
-        mem_pred_channel_fp,
+        seg_filepath, 'data',
+        full_raw_filepath, raw_name,
+        supervoxel_filepath, sv_name,
+        mem_pred_channel_fp, mem_name,
         verbose
     )
 
