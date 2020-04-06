@@ -658,9 +658,13 @@ def organelle_assignment_module(
             layers = viewer.layers
             for name, data in new_organelle_maps.items():
                 is_visible = name == 'MISC'
-                if name in layers:
+                # if name in layers:
+                try:
+                    # This raises a key error if the layer does not exist
+                    # FIXME is there a solution like 'if name in layers: ...' that does not error out?
+                    name in layers
                     layers[name].data = data
-                else:
+                except KeyError:
                     viewer.add_labels(data, name=name, visible=is_visible)
             print("... done")
 
