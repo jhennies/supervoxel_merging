@@ -11,7 +11,7 @@ from elf.io import open_file
 import elf.segmentation.multicut as mc
 import elf.segmentation.features as feats
 
-from subprocess import call, DEVNULL
+from subprocess import call, run, DEVNULL
 import multiprocessing as mp
 
 import napari
@@ -30,12 +30,19 @@ def _load_data(
         channel=None,
         normalize=False,
         verbose=False,
-        relabel=False
+        relabel=False,
+        cache_folder=None
 ):
     with open_file(filepath, 'r') as f:
         data = f['data'][:]
 
-    name = os.path.splitext(filepath)[0]
+    if cache_folder is None:
+        name = os.path.splitext(filepath)[0]
+    else:
+        name = os.path.join(
+            cache_folder,
+            os.path.splitext(os.path.split(filepath)[1])[0]
+        )
     if verbose:
         print(name)
 
@@ -195,17 +202,24 @@ def prepare_for_paintera(paintera_env_name, filepath, target_filepath,
         console_output = DEVNULL
     if paintera_env_name is not None:
         activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+        return call([
+            '{act}'
+            'paintera-convert to-paintera '
+            '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}'.format(
+                act=activate,
+                src=filepath, src_name=src_name,
+                tgt=target_filepath, tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
     else:
-        activate = ''
-    return call([
-        '{act}'
-        'paintera-convert to-paintera '
-        '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}'.format(
-            act=activate,
-            src=filepath, src_name=src_name,
-            tgt=target_filepath, tgt_name=tgt_name
-        )
-    ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+        return run([
+            'bash --login -c '
+            '"paintera-convert to-paintera '
+            '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}"'.format(
+                src=filepath, src_name=src_name,
+                tgt=target_filepath, tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def export_from_paintera(paintera_env_name, filepath, target_filepath,
@@ -217,19 +231,28 @@ def export_from_paintera(paintera_env_name, filepath, target_filepath,
         console_output = DEVNULL
     if paintera_env_name is not None:
         activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+        return call([
+            '{act}'
+            'paintera-convert to-scalar '
+            '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}'.format(
+                act=activate,
+                fp=filepath,
+                target_fp=target_filepath,
+                src_name=src_name,
+                tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
     else:
-        activate = ''
-    return call([
-        '{act}'
-        'paintera-convert to-scalar '
-        '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}'.format(
-            act=activate,
-            fp=filepath,
-            target_fp=target_filepath,
-            src_name=src_name,
-            tgt_name=tgt_name
-        )
-    ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+        return run([
+            'bash --login -c '
+            '"paintera-convert to-scalar '
+            '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}"'.format(
+                fp=filepath,
+                target_fp=target_filepath,
+                src_name=src_name,
+                tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def open_paintera(paintera_env_name, project_folder,
@@ -240,15 +263,20 @@ def open_paintera(paintera_env_name, project_folder,
         console_output = DEVNULL
     if paintera_env_name is not None:
         activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+        return call([
+            '{act}'
+            'paintera {folder}'.format(
+                act=activate,
+                folder=project_folder
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
     else:
-        activate = ''
-    return call([
-        '{act}'
-        'paintera {folder}'.format(
-            act=activate,
-            folder=project_folder
-        )
-    ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+        return call([
+            'bash --login -c '
+            '"paintera {folder}"'.format(
+                folder=project_folder
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def open_napari(data):
@@ -266,8 +294,9 @@ def open_napari(data):
 
 def _open_editor(filepath):
 
-    call([
-        'gedit {fp}'.format(fp=filepath)
+    run([
+        'bash --login -c '
+        '"gedit {fp}"'.format(fp=filepath)
     ], shell=True)
 
 
@@ -725,21 +754,24 @@ def data_loading_module(
 
     # Load raw, mem prediction, and supervoxels
     full_raw_filepath = raw_filepath
-    raw, raw_filepath = _load_data(raw_filepath, annotation_shape, auto_crop_center, verbose=verbose)
+    raw, raw_filepath = _load_data(raw_filepath, annotation_shape, auto_crop_center,
+                                   verbose=verbose, cache_folder=results_folder)
     if mem_pred_filepath is not None:
         if mem_pred_channel is not None:
             mem, mem_pred_filepath, mem_pred_channel_fp = _load_data(mem_pred_filepath, annotation_shape,
                                                                      auto_crop_center,
                                                                      normalize=True, channel=mem_pred_channel,
-                                                                     verbose=verbose)
+                                                                     verbose=verbose,
+                                                                     cache_folder=results_folder)
         else:
             mem, mem_pred_channel_fp = _load_data(mem_pred_filepath, annotation_shape, auto_crop_center,
-                                                  normalize=True, channel=mem_pred_channel, verbose=verbose)
+                                                  normalize=True, channel=mem_pred_channel, verbose=verbose,
+                                                  cache_folder=results_folder)
     else:
         mem = None
         mem_pred_channel_fp = None
     sv, supervoxel_filepath = _load_data(supervoxel_filepath, annotation_shape,
-                                         auto_crop_center, verbose=verbose, relabel=True)
+                                         auto_crop_center, verbose=verbose, relabel=True, cache_folder=results_folder)
 
     return(seg_filepath,
            full_raw_filepath,
