@@ -193,12 +193,15 @@ def prepare_for_paintera(paintera_env_name, filepath, target_filepath,
         console_output = None
     else:
         console_output = DEVNULL
+    if paintera_env_name is not None:
+        activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+    else:
+        activate = ''
     return call([
-        '{act} {env}\n'
+        '{act}'
         'paintera-convert to-paintera '
         '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}'.format(
-            act=activation_command,
-            env=paintera_env_name,
+            act=activate,
             src=filepath, src_name=src_name,
             tgt=target_filepath, tgt_name=tgt_name
         )
@@ -212,12 +215,15 @@ def export_from_paintera(paintera_env_name, filepath, target_filepath,
         console_output = None
     else:
         console_output = DEVNULL
+    if paintera_env_name is not None:
+        activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+    else:
+        activate = ''
     return call([
-        '{act} {paintera_env}\n'
+        '{act}'
         'paintera-convert to-scalar '
         '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}'.format(
-            act=activation_command,
-            paintera_env=paintera_env_name,
+            act=activate,
             fp=filepath,
             target_fp=target_filepath,
             src_name=src_name,
@@ -232,11 +238,14 @@ def open_paintera(paintera_env_name, project_folder,
         console_output = None
     else:
         console_output = DEVNULL
+    if paintera_env_name is not None:
+        activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+    else:
+        activate = ''
     return call([
-        '{act} {paintera_env}\n'
+        '{act}'
         'paintera {folder}'.format(
-            act=activation_command,
-            paintera_env=paintera_env_name,
+            act=activate,
             folder=project_folder
         )
     ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
@@ -392,15 +401,16 @@ def paintera_merging_module(
         else:
             print('2. Supervoxels (as type labels):          "sv"')
 
-        print('\nProof-read the segmentation as desired; save, commit changes and close Paintera when done.')
-        print('\nNote: DO NOT FORGET TO COMMIT CHANGES BEFORE CLOSING!')
-
-        print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-        if open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose):
-            raise RuntimeError
-        print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     else:
         print('\nPaintera project exists ...')
+
+    print('\nProof-read the segmentation as desired; save, commit changes and close Paintera when done.')
+    print('\nNote: DO NOT FORGET TO COMMIT CHANGES BEFORE CLOSING!')
+
+    print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
+    if open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose):
+        raise RuntimeError
+    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     # 8. Convert results to h5 and do the assignments
     #    Generate terminal commands:
@@ -585,6 +595,7 @@ def organelle_assignment_module(
         maps = {}
         assigned = []
         for organelle, assignment in assignments.items():
+            print('found organelle: {}'.format(organelle))
             maps[organelle] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
             val = 1
             for idx in assignment['labels']:
@@ -674,6 +685,7 @@ def organelle_assignment_module(
 
     # 10. Export organelle maps
     print('Exporting organelle maps ...')
+    organelle_maps = _generate_organelle_maps()
     for map_name, map in organelle_maps.items():
         if not os.path.exists(os.path.join(os.path.join(results_folder, 'results'))):
             os.mkdir(os.path.join(os.path.join(results_folder, 'results')))
