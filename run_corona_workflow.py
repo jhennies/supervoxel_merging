@@ -8,15 +8,11 @@ import json
 
 if __name__ == '__main__':
 
-    default_command = 'source activate'
-    default_inputs_folder = '/g/emcf/common/'
-    default_paintera_env_name = '/g/emcf/common/envs/paintera-env-{}'.format(getpass.getuser())
-
     parser = argparse.ArgumentParser()
     parser.add_argument('--result_folder', type=str, default=None)
     parser.add_argument('--input_folder', type=str, default=None)
-    parser.add_argument('--paintera_env_name', type=str, default=default_paintera_env_name)
-    parser.add_argument('--activation_command', type=str, default=default_command)
+    parser.add_argument('--paintera_env_name', type=str, default=None)
+    parser.add_argument('--activation_command', type=str, default=None)
     parser.add_argument('--no_conncomp_on_paintera_export', action='store_true')
 
     args = parser.parse_args()
