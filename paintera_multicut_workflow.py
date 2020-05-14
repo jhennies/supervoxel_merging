@@ -391,7 +391,8 @@ def paintera_merging_module(
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         if prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(results_folder, 'data.n5'),
                                 activation_command, shell, verbose=verbose, src_name=raw_name, tgt_name='raw'):
-            raise RuntimeError
+            pass
+            # raise RuntimeError
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
         if mem_pred_filepath is not None:
@@ -400,7 +401,8 @@ def paintera_merging_module(
             print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
             if prepare_for_paintera(paintera_env_name, mem_pred_filepath, os.path.join(results_folder, 'data.n5'),
                                     activation_command, shell, verbose=verbose, src_name=mem_name, tgt_name='mem'):
-                raise RuntimeError
+                pass
+                # raise RuntimeError
             print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
         if verbose:
@@ -408,7 +410,8 @@ def paintera_merging_module(
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         if prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
                                 activation_command, shell, verbose=verbose, src_name=sv_name, tgt_name='sv'):
-            raise RuntimeError
+            pass
+            # raise RuntimeError
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
         if verbose:

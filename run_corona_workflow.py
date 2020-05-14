@@ -3,6 +3,7 @@ import argparse
 import os
 from paintera_multicut_workflow import pm_workflow
 import getpass
+import json
 
 
 if __name__ == '__main__':
@@ -16,12 +17,26 @@ if __name__ == '__main__':
     parser.add_argument('--input_folder', type=str, default=None)
     parser.add_argument('--paintera_env_name', type=str, default=default_paintera_env_name)
     parser.add_argument('--activation_command', type=str, default=default_command)
+    parser.add_argument('--no_conncomp_on_paintera_export', action='store_true')
 
     args = parser.parse_args()
     results_folder = args.result_folder
     inputs_folder = args.input_folder
     paintera_env_name = args.paintera_env_name
     activation_command = args.activation_command
+
+    conncomp_on_paintera_export = True
+    if os.path.exists(os.path.join(inputs_folder, 'settings.json')):
+        with open(os.path.join(inputs_folder, 'settings.json')) as f:
+            settings = json.load(f)
+        conncomp_on_paintera_export = settings['conncomp_on_paintera_export']
+
+    if args.no_conncomp_on_paintera_export:
+        conncomp_on_paintera_export = False
+    if conncomp_on_paintera_export:
+        print('Connected components on paintera export enabled.')
+    else:
+        print('Connected components on paintera export disabled.')
 
     assert inputs_folder
     print('paintera environment call: {} {}'.format(activation_command, paintera_env_name))
@@ -58,6 +73,6 @@ if __name__ == '__main__':
         paintera_env_name=paintera_env_name,
         activation_command=activation_command,
         export_binary=True,
-        conncomp_on_paintera_export=True,
+        conncomp_on_paintera_export=conncomp_on_paintera_export,
         verbose=True
     )
