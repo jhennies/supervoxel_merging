@@ -42,7 +42,8 @@ if __name__ == '__main__':
     print('paintera environment call: {} {}'.format(activation_command, paintera_env_name))
     if results_folder is None:
         inputs_folder = os.path.normpath(inputs_folder)
-        results_folder = os.path.join(os.path.split(inputs_folder)[0], 'result_{}_'.format(getpass.getuser()) + os.path.split(inputs_folder)[1])
+        # results_folder = os.path.join(os.path.split(inputs_folder)[0], 'result_{}_'.format(getpass.getuser()) + os.path.split(inputs_folder)[1])
+        results_folder = os.path.join('/scratch/emcf/segmentation_results/', os.path.split(inputs_folder)[1])
         print('Writing results to {}'.format(results_folder))
 
     if not os.path.exists(results_folder):
