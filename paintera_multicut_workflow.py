@@ -618,37 +618,41 @@ def organelle_assignment_module(
 
     def _generate_organelle_maps():
 
-        # TODO this should be wrapped in a try/except in case of invalid json syntax
-        # and then be caught to tell user to correct it
-        # get the current organelle assignments from the text file
-        with open(organelle_assignments_filepath, mode='r') as f:
-            assignments = json.load(f)
+        try:
+            # TODO this should be wrapped in a try/except in case of invalid json syntax
+            # and then be caught to tell user to correct it
+            # get the current organelle assignments from the text file
+            with open(organelle_assignments_filepath, mode='r') as f:
+                assignments = json.load(f)
 
-        maps = {}
-        assigned = []
-        for organelle, assignment in assignments.items():
-            print('found organelle: {}'.format(organelle))
-            maps[organelle] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
+            maps = {}
+            assigned = []
+            for organelle, assignment in assignments.items():
+                print('found organelle: {}'.format(organelle))
+                maps[organelle] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
+                val = 1
+                for idx in assignment['labels']:
+                    maps[organelle][exp_seg == idx] = val
+                    if assignment['type'] == 'multi':
+                        val += 1
+                    assigned.append(idx)
+
+            unassigned = np.setdiff1d(all_ids, assigned)
+            maps['MISC'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
             val = 1
-            for idx in assignment['labels']:
-                maps[organelle][exp_seg == idx] = val
-                if assignment['type'] == 'multi':
-                    val += 1
-                assigned.append(idx)
+            for idx in unassigned:
+                maps['MISC'][exp_seg == idx] = val
+                val += 1
 
-        unassigned = np.setdiff1d(all_ids, assigned)
-        maps['MISC'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
-        val = 1
-        for idx in unassigned:
-            maps['MISC'][exp_seg == idx] = val
-            val += 1
+            map_names = sorted(maps.keys())
+            maps['SEMANTICS'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
+            for map_idx, map_name in enumerate(map_names):
+                maps['SEMANTICS'][maps[map_name] > 0] = map_idx
 
-        map_names = sorted(maps.keys())
-        maps['SEMANTICS'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
-        for map_idx, map_name in enumerate(map_names):
-            maps['SEMANTICS'][maps[map_name] > 0] = map_idx
-
-        return maps
+            return maps
+        except:
+            print('Invalid json syntax!!! Fix the json file, save and update Napari again!')
+            return {}
 
     def _print_help():
         # I don't think we need explicit quit command any more
