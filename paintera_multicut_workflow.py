@@ -455,7 +455,8 @@ def paintera_merging_module(
     if export_from_paintera(paintera_env_name, supervoxel_proj_path, os.path.join(results_folder, 'exported_seg.h5'),
                             activation_command, shell, src_name='sv', tgt_name='data',
                             verbose=verbose):
-        raise RuntimeError
+        pass
+        # raise RuntimeError
     print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     assert os.path.exists(os.path.join(results_folder, 'exported_seg.h5'))
 
