@@ -613,7 +613,17 @@ def organelle_assignment_module(
 
     if not os.path.exists(organelle_assignments_filepath):
         with open(organelle_assignments_filepath, mode='w') as f:
-            json.dump(dict(CYTO=dict(labels=[0], type='single')), f)
+            json.dump(
+                dict(
+                    CYTO=dict(labels=[0], type='single'),
+                    DMV=dict(labels=[], type='multi'),
+                    ER=dict(labels=[], type='single'),
+                    MITO=dict(labels=[], type='multi'),
+                    ENDO=dict(labels=[], type='multi'),
+                    LIPID=dict(labels=[], type='multi'),
+                    NUC=dict(labels=[], type='single'),
+                    EXT=dict(labels=[], type='single')
+                ), f, indent=2)
 
     all_ids = list(np.unique(exp_seg))
 
