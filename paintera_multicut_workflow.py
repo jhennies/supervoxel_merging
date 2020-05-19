@@ -334,7 +334,7 @@ def multicut_module(
             to_show = [dict(type='raw', name='raw', data=raw, visible=True)]
             if mem is not None:
                 to_show.append(dict(type='raw', name='mem', data=mem, visible=True))
-            to_show.append(dict(type='label', name='sv', data=sv, visible=True))
+            to_show.append(dict(type='label', name='sv', data=sv, visible=False))
             to_show.append(dict(type='label', name='seg', data=seg, visible=True))
             open_napari(to_show)
 
@@ -681,13 +681,14 @@ def organelle_assignment_module(
         viewer.add_image(raw, name='raw')
         if mem_pred_filepath is not None:
             viewer.add_image(mem, name='mem', visible=False)
-        viewer.add_labels(exp_seg, name='from Paintera', visible=False)
 
         # add the initial organelle maps
         organelle_maps = _generate_organelle_maps()
         for name, data in organelle_maps.items():
             is_visible = name == 'MISC'
             viewer.add_labels(data, name=name, visible=is_visible)
+
+        viewer.add_labels(exp_seg, name='from Paintera', visible=True, opacity=0)
 
         _print_help()
 
