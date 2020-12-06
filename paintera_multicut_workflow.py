@@ -31,6 +31,7 @@ def _load_data(
         normalize=False,
         verbose=False,
         relabel=False,
+        conncomp=False,
         cache_folder=None
 ):
     with open_file(filepath, 'r') as f:
@@ -87,6 +88,8 @@ def _load_data(
             data /= 255
 
         if relabel:
+            if conncomp:
+                data = labelMultiArray(data.astype('float32'))
             data = relabel_consecutive(data).astype('uint32')
             with File(relabel_filepath, mode='w') as f:
                 f.create_dataset('data', data=data, compression='gzip')
@@ -790,7 +793,7 @@ def data_loading_module(
         mem = None
         mem_pred_channel_fp = None
     sv, supervoxel_filepath = _load_data(supervoxel_filepath, annotation_shape,
-                                         auto_crop_center, verbose=verbose, relabel=True, cache_folder=results_folder)
+                                         auto_crop_center, verbose=verbose, relabel=True, cache_folder=results_folder, conncomp=True)
 
     return(seg_filepath,
            full_raw_filepath,
