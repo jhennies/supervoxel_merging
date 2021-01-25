@@ -11,7 +11,7 @@ from elf.io import open_file
 import elf.segmentation.multicut as mc
 import elf.segmentation.features as feats
 
-from subprocess import call, DEVNULL
+from subprocess import call, run, DEVNULL
 import multiprocessing as mp
 
 import napari
@@ -30,12 +30,20 @@ def _load_data(
         channel=None,
         normalize=False,
         verbose=False,
-        relabel=False
+        relabel=False,
+        conncomp=False,
+        cache_folder=None
 ):
     with open_file(filepath, 'r') as f:
         data = f['data'][:]
 
-    name = os.path.splitext(filepath)[0]
+    if cache_folder is None:
+        name = os.path.splitext(filepath)[0]
+    else:
+        name = os.path.join(
+            cache_folder,
+            os.path.splitext(os.path.split(filepath)[1])[0]
+        )
     if verbose:
         print(name)
 
@@ -80,6 +88,8 @@ def _load_data(
             data /= 255
 
         if relabel:
+            if conncomp:
+                data = labelMultiArray(data.astype('float32'))
             data = relabel_consecutive(data).astype('uint32')
             with File(relabel_filepath, mode='w') as f:
                 f.create_dataset('data', data=data, compression='gzip')
@@ -193,16 +203,26 @@ def prepare_for_paintera(paintera_env_name, filepath, target_filepath,
         console_output = None
     else:
         console_output = DEVNULL
-    return call([
-        '{act} {env}\n'
-        'paintera-convert to-paintera '
-        '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}'.format(
-            act=activation_command,
-            env=paintera_env_name,
-            src=filepath, src_name=src_name,
-            tgt=target_filepath, tgt_name=tgt_name
-        )
-    ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+    if paintera_env_name is not None:
+        activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+        return call([
+            '{act}'
+            'paintera-convert to-paintera '
+            '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}'.format(
+                act=activate,
+                src=filepath, src_name=src_name,
+                tgt=target_filepath, tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+    else:
+        return run([
+            'bash --login -c '
+            '"paintera-convert to-paintera '
+            '--container {src} --dataset {src_name} --output-container {tgt} --target-dataset {tgt_name}"'.format(
+                src=filepath, src_name=src_name,
+                tgt=target_filepath, tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def export_from_paintera(paintera_env_name, filepath, target_filepath,
@@ -212,18 +232,30 @@ def export_from_paintera(paintera_env_name, filepath, target_filepath,
         console_output = None
     else:
         console_output = DEVNULL
-    return call([
-        '{act} {paintera_env}\n'
-        'paintera-convert to-scalar '
-        '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}'.format(
-            act=activation_command,
-            paintera_env=paintera_env_name,
-            fp=filepath,
-            target_fp=target_filepath,
-            src_name=src_name,
-            tgt_name=tgt_name
-        )
-    ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+    if paintera_env_name is not None:
+        activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+        return call([
+            '{act}'
+            'paintera-convert to-scalar '
+            '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}'.format(
+                act=activate,
+                fp=filepath,
+                target_fp=target_filepath,
+                src_name=src_name,
+                tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+    else:
+        return run([
+            'bash --login -c '
+            '"paintera-convert to-scalar '
+            '--consider-fragment-segment-assignment -i {fp} -I {src_name} -o {target_fp} -O {tgt_name}"'.format(
+                fp=filepath,
+                target_fp=target_filepath,
+                src_name=src_name,
+                tgt_name=tgt_name
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def open_paintera(paintera_env_name, project_folder,
@@ -232,14 +264,22 @@ def open_paintera(paintera_env_name, project_folder,
         console_output = None
     else:
         console_output = DEVNULL
-    return call([
-        '{act} {paintera_env}\n'
-        'paintera {folder}'.format(
-            act=activation_command,
-            paintera_env=paintera_env_name,
-            folder=project_folder
-        )
-    ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+    if paintera_env_name is not None:
+        activate = '{act} {paintera_env}\n'.format(act=activation_command, paintera_env=paintera_env_name)
+        return call([
+            '{act}'
+            'paintera {folder}'.format(
+                act=activate,
+                folder=project_folder
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
+    else:
+        return call([
+            'bash --login -c '
+            '"paintera {folder}"'.format(
+                folder=project_folder
+            )
+        ], shell=True, executable=shell, stdout=console_output, stderr=console_output)
 
 
 def open_napari(data):
@@ -257,8 +297,9 @@ def open_napari(data):
 
 def _open_editor(filepath):
 
-    call([
-        'gedit {fp}'.format(fp=filepath)
+    run([
+        'bash --login -c '
+        '"gedit {fp}"'.format(fp=filepath)
     ], shell=True)
 
 
@@ -296,7 +337,7 @@ def multicut_module(
             to_show = [dict(type='raw', name='raw', data=raw, visible=True)]
             if mem is not None:
                 to_show.append(dict(type='raw', name='mem', data=mem, visible=True))
-            to_show.append(dict(type='label', name='sv', data=sv, visible=True))
+            to_show.append(dict(type='label', name='sv', data=sv, visible=False))
             to_show.append(dict(type='label', name='seg', data=seg, visible=True))
             open_napari(to_show)
 
@@ -353,7 +394,8 @@ def paintera_merging_module(
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         if prepare_for_paintera(paintera_env_name, full_raw_filepath, os.path.join(results_folder, 'data.n5'),
                                 activation_command, shell, verbose=verbose, src_name=raw_name, tgt_name='raw'):
-            raise RuntimeError
+            pass
+            # raise RuntimeError
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
         if mem_pred_filepath is not None:
@@ -362,7 +404,8 @@ def paintera_merging_module(
             print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
             if prepare_for_paintera(paintera_env_name, mem_pred_filepath, os.path.join(results_folder, 'data.n5'),
                                     activation_command, shell, verbose=verbose, src_name=mem_name, tgt_name='mem'):
-                raise RuntimeError
+                pass
+                # raise RuntimeError
             print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
         if verbose:
@@ -370,7 +413,8 @@ def paintera_merging_module(
         print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
         if prepare_for_paintera(paintera_env_name, supervoxel_filepath, supervoxel_proj_path,
                                 activation_command, shell, verbose=verbose, src_name=sv_name, tgt_name='sv'):
-            raise RuntimeError
+            pass
+            # raise RuntimeError
         print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
         if verbose:
@@ -392,15 +436,16 @@ def paintera_merging_module(
         else:
             print('2. Supervoxels (as type labels):          "sv"')
 
-        print('\nProof-read the segmentation as desired; save, commit changes and close Paintera when done.')
-        print('\nNote: DO NOT FORGET TO COMMIT CHANGES BEFORE CLOSING!')
-
-        print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
-        if open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose):
-            raise RuntimeError
-        print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     else:
         print('\nPaintera project exists ...')
+
+    print('\nProof-read the segmentation as desired; save, commit changes and close Paintera when done.')
+    print('\nNote: DO NOT FORGET TO COMMIT CHANGES BEFORE CLOSING!')
+
+    print('\n>>> SHELL >>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>\n')
+    if open_paintera(paintera_env_name, paintera_proj_path, activation_command, shell, verbose=verbose):
+        raise RuntimeError
+    print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
 
     # 8. Convert results to h5 and do the assignments
     #    Generate terminal commands:
@@ -413,7 +458,8 @@ def paintera_merging_module(
     if export_from_paintera(paintera_env_name, supervoxel_proj_path, os.path.join(results_folder, 'exported_seg.h5'),
                             activation_command, shell, src_name='sv', tgt_name='data',
                             verbose=verbose):
-        raise RuntimeError
+        pass
+        # raise RuntimeError
     print('\n<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<<\n')
     assert os.path.exists(os.path.join(results_folder, 'exported_seg.h5'))
 
@@ -570,42 +616,57 @@ def organelle_assignment_module(
 
     if not os.path.exists(organelle_assignments_filepath):
         with open(organelle_assignments_filepath, mode='w') as f:
-            json.dump(dict(CYTO=dict(labels=[0], type='single')), f)
+            json.dump(
+                dict(
+                    CYTO=dict(labels=[0], type='single'),
+                    DMV=dict(labels=[], type='multi'),
+                    ER=dict(labels=[], type='single'),
+                    MITO=dict(labels=[], type='multi'),
+                    ENDO=dict(labels=[], type='multi'),
+                    LIPID=dict(labels=[], type='multi'),
+                    NUC=dict(labels=[], type='single'),
+                    EXT=dict(labels=[], type='single')
+                ), f, indent=2)
 
     all_ids = list(np.unique(exp_seg))
 
     def _generate_organelle_maps():
 
-        # TODO this should be wrapped in a try/except in case of invalid json syntax
-        # and then be caught to tell user to correct it
-        # get the current organelle assignments from the text file
-        with open(organelle_assignments_filepath, mode='r') as f:
-            assignments = json.load(f)
+        try:
+            # TODO this should be wrapped in a try/except in case of invalid json syntax
+            # and then be caught to tell user to correct it
+            # get the current organelle assignments from the text file
+            with open(organelle_assignments_filepath, mode='r') as f:
+                assignments = json.load(f)
 
-        maps = {}
-        assigned = []
-        for organelle, assignment in assignments.items():
-            maps[organelle] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
+            maps = {}
+            assigned = []
+            for organelle, assignment in assignments.items():
+                print('found organelle: {}'.format(organelle))
+                maps[organelle] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
+                val = 1
+                for idx in assignment['labels']:
+                    maps[organelle][exp_seg == idx] = val
+                    if assignment['type'] == 'multi':
+                        val += 1
+                    assigned.append(idx)
+
+            unassigned = np.setdiff1d(all_ids, assigned)
+            maps['MISC'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
             val = 1
-            for idx in assignment['labels']:
-                maps[organelle][exp_seg == idx] = val
-                if assignment['type'] == 'multi':
-                    val += 1
-                assigned.append(idx)
+            for idx in unassigned:
+                maps['MISC'][exp_seg == idx] = val
+                val += 1
 
-        unassigned = np.setdiff1d(all_ids, assigned)
-        maps['MISC'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
-        val = 1
-        for idx in unassigned:
-            maps['MISC'][exp_seg == idx] = val
-            val += 1
+            map_names = sorted(maps.keys())
+            maps['SEMANTICS'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
+            for map_idx, map_name in enumerate(map_names):
+                maps['SEMANTICS'][maps[map_name] > 0] = map_idx
 
-        map_names = sorted(maps.keys())
-        maps['SEMANTICS'] = np.zeros(exp_seg.shape, dtype=exp_seg.dtype)
-        for map_idx, map_name in enumerate(map_names):
-            maps['SEMANTICS'][maps[map_name] > 0] = map_idx
-
-        return maps
+            return maps
+        except:
+            print('Invalid json syntax!!! Fix the json file, save and update Napari again!')
+            return {}
 
     def _print_help():
         # I don't think we need explicit quit command any more
@@ -623,13 +684,14 @@ def organelle_assignment_module(
         viewer.add_image(raw, name='raw')
         if mem_pred_filepath is not None:
             viewer.add_image(mem, name='mem', visible=False)
-        viewer.add_labels(exp_seg, name='from Paintera', visible=False)
 
         # add the initial organelle maps
         organelle_maps = _generate_organelle_maps()
         for name, data in organelle_maps.items():
             is_visible = name == 'MISC'
             viewer.add_labels(data, name=name, visible=is_visible)
+
+        viewer.add_labels(exp_seg, name='from Paintera', visible=True, opacity=0)
 
         _print_help()
 
@@ -674,6 +736,7 @@ def organelle_assignment_module(
 
     # 10. Export organelle maps
     print('Exporting organelle maps ...')
+    organelle_maps = _generate_organelle_maps()
     for map_name, map in organelle_maps.items():
         if not os.path.exists(os.path.join(os.path.join(results_folder, 'results'))):
             os.mkdir(os.path.join(os.path.join(results_folder, 'results')))
@@ -713,21 +776,24 @@ def data_loading_module(
 
     # Load raw, mem prediction, and supervoxels
     full_raw_filepath = raw_filepath
-    raw, raw_filepath = _load_data(raw_filepath, annotation_shape, auto_crop_center, verbose=verbose)
+    raw, raw_filepath = _load_data(raw_filepath, annotation_shape, auto_crop_center,
+                                   verbose=verbose, cache_folder=results_folder)
     if mem_pred_filepath is not None:
         if mem_pred_channel is not None:
             mem, mem_pred_filepath, mem_pred_channel_fp = _load_data(mem_pred_filepath, annotation_shape,
                                                                      auto_crop_center,
                                                                      normalize=True, channel=mem_pred_channel,
-                                                                     verbose=verbose)
+                                                                     verbose=verbose,
+                                                                     cache_folder=results_folder)
         else:
             mem, mem_pred_channel_fp = _load_data(mem_pred_filepath, annotation_shape, auto_crop_center,
-                                                  normalize=True, channel=mem_pred_channel, verbose=verbose)
+                                                  normalize=True, channel=mem_pred_channel, verbose=verbose,
+                                                  cache_folder=results_folder)
     else:
         mem = None
         mem_pred_channel_fp = None
     sv, supervoxel_filepath = _load_data(supervoxel_filepath, annotation_shape,
-                                         auto_crop_center, verbose=verbose, relabel=True)
+                                         auto_crop_center, verbose=verbose, relabel=True, cache_folder=results_folder, conncomp=True)
 
     return(seg_filepath,
            full_raw_filepath,
