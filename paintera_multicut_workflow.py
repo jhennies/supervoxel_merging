@@ -4,7 +4,7 @@ import os
 import sys
 from h5py import File
 import json
-from vigra.analysis import labelMultiArray
+from vigra.analysis import labelMultiArray, sizeFilterSegInplace, watershedsNew
 from shutil import rmtree
 
 from elf.io import open_file
@@ -592,6 +592,17 @@ def paintera_merging_module2(
             f.create_dataset('data', data=exp_seg, compression='gzip')
 
 
+def small_objects_to_zero(m, size_filter):
+
+    u, c = np.unique(m, return_counts=True)
+    smalls = u[c < size_filter]
+
+    for small in smalls:
+        m[m == small] = 0
+
+    return m
+
+
 def organelle_assignment_module(
         results_folder,
         organelle_assignments_filepath,
@@ -599,10 +610,11 @@ def organelle_assignment_module(
         mem_pred_filepath,
         raw,
         mem,
-        conncomp_on_paintera_export,
         result_dtype,
-        export_binary,
-        verbose
+        export_binary=False,
+        conncomp_on_paintera_export=False,
+        merge_small_segments_on_paintera_export=False,
+        verbose=False
 ):
     print('\nNapari and editor started in sub-processes.')
     print('\nFill the text file with assignments')
@@ -612,6 +624,16 @@ def organelle_assignment_module(
     if conncomp_on_paintera_export:
         # Computing connected components
         exp_seg = labelMultiArray(exp_seg.astype('float32'))
+    if merge_small_segments_on_paintera_export:
+        # Merge small segments
+        print('Removing small segments ...')
+        # exp_seg = sizeFilterSegInplace(exp_seg.astype('uint32') + 1, int(np.max(exp_seg)), 48, checkAtBorder=True)
+        exp_seg = small_objects_to_zero(exp_seg + 1, 48)
+        print('Filling the holes ...')
+        print(f'exp_seg.shape = {exp_seg.shape}')
+        print(f'exp_seg.dtype = {exp_seg.dtype}')
+        exp_seg = watershedsNew(exp_seg.astype('float32'), seeds=exp_seg.astype('uint32'), neighborhood=26)[0] - 1
+        print('... done!')
     exp_seg = relabel_consecutive(exp_seg, sort_by_size=True)
 
     if not os.path.exists(organelle_assignments_filepath):
@@ -619,13 +641,13 @@ def organelle_assignment_module(
             json.dump(
                 dict(
                     CYTO=dict(labels=[0], type='single'),
-                    DMV=dict(labels=[], type='multi'),
-                    ER=dict(labels=[], type='single'),
                     MITO=dict(labels=[], type='multi'),
-                    ENDO=dict(labels=[], type='multi'),
-                    LIPID=dict(labels=[], type='multi'),
-                    NUC=dict(labels=[], type='single'),
-                    EXT=dict(labels=[], type='single')
+                    # DMV=dict(labels=[], type='multi'),
+                    # ER=dict(labels=[], type='single'),
+                    # ENDO=dict(labels=[], type='multi'),
+                    # LIPID=dict(labels=[], type='multi'),
+                    # NUC=dict(labels=[], type='single'),
+                    # EXT=dict(labels=[], type='single')
                 ), f, indent=2)
 
     all_ids = list(np.unique(exp_seg))
@@ -633,7 +655,7 @@ def organelle_assignment_module(
     def _generate_organelle_maps():
 
         try:
-            # TODO this should be wrapped in a try/except in case of invalid json syntax
+            # This should be wrapped in a try/except in case of invalid json syntax
             # and then be caught to tell user to correct it
             # get the current organelle assignments from the text file
             with open(organelle_assignments_filepath, mode='r') as f:
@@ -963,6 +985,7 @@ def pm_workflow(
         result_dtype='uint16',
         export_binary=False,
         conncomp_on_paintera_export=True,
+        merge_small_segments=False,
         pre_segmentation_filepath=None,
         verbose=False
 ):
@@ -1072,10 +1095,11 @@ def pm_workflow(
         mem_pred_filepath,
         raw,
         mem,
-        conncomp_on_paintera_export,
         result_dtype,
-        export_binary,
-        verbose
+        export_binary=export_binary,
+        conncomp_on_paintera_export=conncomp_on_paintera_export,
+        merge_small_segments_on_paintera_export=merge_small_segments,
+        verbose=verbose
     )
 
 

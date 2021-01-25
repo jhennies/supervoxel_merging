@@ -14,12 +14,14 @@ if __name__ == '__main__':
     parser.add_argument('--paintera_env_name', type=str, default=None)
     parser.add_argument('--activation_command', type=str, default=None)
     parser.add_argument('--no_conncomp_on_paintera_export', action='store_true')
+    parser.add_argument('--merge_small_segments', action='store_true')
 
     args = parser.parse_args()
     results_folder = args.result_folder
     inputs_folder = args.input_folder
     paintera_env_name = args.paintera_env_name
     activation_command = args.activation_command
+    merge_small_segments = args.merge_small_segments
 
     conncomp_on_paintera_export = True
     if os.path.exists(os.path.join(inputs_folder, 'settings.json')):
@@ -66,10 +68,11 @@ if __name__ == '__main__':
         supervoxel_filepath=sv_filepath,
         mem_pred_channel=None,
         auto_crop_center=True,
-        annotation_shape=(256, 256, 256),
+        annotation_shape=(256, 256, 256),  # TODO: Retrieve from data size in sv.h5
         paintera_env_name=paintera_env_name,
         activation_command=activation_command,
         export_binary=True,
         conncomp_on_paintera_export=conncomp_on_paintera_export,
+        merge_small_segments=merge_small_segments,
         verbose=True
     )
