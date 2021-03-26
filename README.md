@@ -26,6 +26,24 @@ Main environment:
     conda activate paintera-mc-workflow-env
     conda install -c conda-forge napari
     conda install -c cpape z5py
+    
+### From archive (under development)
+
+Download pm_workflow.tar.gz
+
+Unpack with
+
+    mkdir pm_workflow
+    tar -xzf pm_workflow.tar.gz -C pm_workflow
+    
+Run the pipeline
+
+    cd pm_workflow
+    ./run_workflow.sh input_folder result_folder [arguments]
+    
+Use help for description of arguments
+
+    ./run_workflow.sh -h
 
 ## Usage
 
