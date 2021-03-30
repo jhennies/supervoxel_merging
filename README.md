@@ -27,24 +27,6 @@ Main environment:
     conda install -c conda-forge napari
     conda install -c cpape z5py
     
-### From archive (under development)
-
-Download pm_workflow.tar.gz
-
-Unpack with
-
-    mkdir pm_workflow
-    tar -xzf pm_workflow.tar.gz -C pm_workflow
-    
-Run the pipeline
-
-    cd pm_workflow
-    ./run_workflow.sh input_folder result_folder [arguments]
-    
-Use help for description of arguments
-
-    ./run_workflow.sh -h
-
 ## Usage
 
     from paintera_multicut_workflow import pm_workflow
@@ -63,3 +45,45 @@ Use help for description of arguments
         conncomp_on_paintera_export=True,  
         verbose=True
     )
+
+## Installation and usage from archive (under development)
+
+### Linux
+
+Download pm_workflow.tar.gz
+
+Unpack with
+
+    mkdir pm_workflow
+    tar -xzf pm_workflow.tar.gz -C pm_workflow
+    
+Run the pipeline
+
+    cd pm_workflow
+    ./run_workflow.sh input_folder result_folder [arguments]
+    
+Use help for description of arguments
+
+    ./run_workflow.sh -h
+    
+### Windows
+
+Download pm_workflow_win.zip
+
+Unpack to the the disired location (workflow directory)
+
+Run the pipeline using the command prompt:
+
+Open command prompt and navigate to the workflow directory, e.g.
+
+    cd path\to\pm_workflow_win
+    
+Run the pipeline with
+
+    run_workflow.bat input_folder result_folder [arguments]
+    
+Use help for description of arguments
+
+    run_workflow.bat -h
+
+    
